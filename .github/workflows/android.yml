@@ -1,9 +1,9 @@
-name: Build Android APK
+name: Build Android APK (self-contained)
 
 on:
+  workflow_dispatch: {}
   push:
     branches: [ main ]
-  workflow_dispatch: {}
 
 jobs:
   build:
@@ -13,26 +13,87 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Génère un mini-projet Android directement dans le runner
+      - name: Generate minimal Android app
+        run: |
+          set -e
+          mkdir -p app/src/main/java/com/worldtv
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          include ':app'
+          EOF
+
+          cat > build.gradle <<'EOF'
+          buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.0.2' }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android {
+            namespace "com.worldtv"
+            compileSdk 33
+            defaultConfig {
+              applicationId "com.worldtv"
+              minSdk 21
+              targetSdk 33
+              versionCode 1
+              versionName "1.0"
+            }
+            buildTypes { release { minifyEnabled false } }
+          }
+          dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.9.0'
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.worldtv">
+            <application android:label="World TV">
+              <activity android:name=".MainActivity">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/worldtv/MainActivity.java <<'EOF'
+          package com.worldtv;
+          import android.os.Bundle;
+          import androidx.appcompat.app.AppCompatActivity;
+          import android.widget.TextView;
+          public class MainActivity extends AppCompatActivity {
+            @Override protected void onCreate(Bundle b) {
+              super.onCreate(b);
+              TextView tv = new TextView(this);
+              tv.setText("Bienvenue sur World TV !");
+              tv.setTextSize(24f);
+              setContentView(tv);
+            }
+          }
+          EOF
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle cache
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # Utilise le wrapper s'il existe, sinon le gradle système
       - name: Build Debug APK
-        run: |
-          if [ -x "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew assembleDebug
-          else
-            gradle assembleDebug
-          fi
+        run: gradle assembleDebug
 
-      - name: Upload Debug APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: WorldTV-debug-apk

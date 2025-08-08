@@ -1,4 +1,4 @@
-name: Build Android APK (WorldTV - M3U / Xtream / STB)
+name: Build Android APK (WorldTV complet)
 
 on:
   workflow_dispatch: {}
@@ -11,17 +11,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate app (Java) with SDK 34
+      - name: Generate Android app
         run: |
           set -e
           mkdir -p app/src/main/java/com/worldtv
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
+          # settings.gradle
           cat > settings.gradle <<'EOF'
           include ':app'
           EOF
 
+          # build.gradle (racine)
           cat > build.gradle <<'EOF'
           buildscript {
             repositories { google(); mavenCentral() }
@@ -30,6 +32,7 @@ jobs:
           allprojects { repositories { google(); mavenCentral() } }
           EOF
 
+          # app/build.gradle
           cat > app/build.gradle <<'EOF'
           plugins { id 'com.android.application' }
           android {
@@ -48,13 +51,14 @@ jobs:
             implementation 'androidx.appcompat:appcompat:1.6.1'
             implementation 'com.google.android.material:material:1.9.0'
             implementation 'androidx.media3:media3-exoplayer:1.3.1'
-            implementation 'androidx.media3:media3-ui:1.3.1'
             implementation 'androidx.media3:media3-exoplayer-hls:1.3.1'
+            implementation 'androidx.media3:media3-ui:1.3.1'
           }
           EOF
 
+          # AndroidManifest.xml
           cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.worldtv">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET"/>
             <application
                 android:label="World TV"
@@ -73,6 +77,7 @@ jobs:
           </manifest>
           EOF
 
+          # Layouts
           cat > app/src/main/res/layout/activity_main.xml <<'EOF'
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical" android:gravity="center"
@@ -127,12 +132,12 @@ jobs:
           </FrameLayout>
           EOF
 
+          # Java
           cat > app/src/main/java/com/worldtv/MainActivity.java <<'EOF'
           package com.worldtv;
           import android.app.Activity;
           import android.content.Intent;
           import android.os.Bundle;
-          import android.widget.Button;
           public class MainActivity extends Activity {
               @Override protected void onCreate(Bundle b) {
                   super.onCreate(b);
@@ -207,7 +212,7 @@ jobs:
               @Override protected void onCreate(Bundle b) {
                   super.onCreate(b);
                   EditText e = new EditText(this);
-                  e.setHint("Saisie Xtream à implémenter");
+                  e.setHint("Connexion Xtream (à implémenter)");
                   setContentView(e);
               }
           }
@@ -222,7 +227,7 @@ jobs:
               @Override protected void onCreate(Bundle b) {
                   super.onCreate(b);
                   EditText e = new EditText(this);
-                  e.setHint("Saisie STB à implémenter");
+                  e.setHint("Connexion STB (à implémenter)");
                   setContentView(e);
               }
           }
@@ -238,4 +243,5 @@ jobs:
         with:
           name: WorldTV-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
 

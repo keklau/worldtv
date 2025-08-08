@@ -1,4 +1,4 @@
-name: Build Android APK (WorldTV – stable Gradle 8.7 + AGP 8.5.2)
+name: WorldTV – menu M3U / Xtream / STB (Gradle 8.7 + AGP 8.5.2)
 
 on:
   workflow_dispatch: {}
@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Force Gradle 8.7 (évite Gradle 9.0)
+      # Verrouille Gradle 8.7 (évite Gradle 9)
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -25,14 +25,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Generate Android project (AGP 8.5.2, SDK 34, Media3)
+      - name: Generate Android project (SDK 34, Media3)
         run: |
           set -e
           mkdir -p app/src/main/java/com/worldtv
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
-          # settings.gradle (repositories modernes)
+          # settings.gradle (repos modernes)
           cat > settings.gradle <<'EOF'
           pluginManagement {
             repositories { gradlePluginPortal(); google(); mavenCentral() }
@@ -45,12 +45,12 @@ jobs:
           include(":app")
           EOF
 
-          # build.gradle (root) — vide (on utilise la DSL plugins au module)
+          # build.gradle (root)
           cat > build.gradle <<'EOF'
-          // repositories in settings.gradle; plugins declared in app/build.gradle
+          // plugins et repos gérés dans settings.gradle et app/build.gradle
           EOF
 
-          # app/build.gradle — AGP 8.5.2 + Gradle 8.7 + Media3 1.4.1
+          # app/build.gradle (AGP 8.5.2 + Media3 1.4.1)
           cat > app/build.gradle <<'EOF'
           plugins {
             id 'com.android.application' version '8.5.2'
@@ -82,7 +82,7 @@ jobs:
           }
           EOF
 
-          # Manifest : MainActivity = launcher (exported), PlayerActivity sans intent-filter
+          # Manifest : MainActivity = menu (launcher/exported), le reste sans intent-filter
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <application
@@ -99,13 +99,16 @@ jobs:
               </activity>
 
               <activity android:name=".M3UInputActivity" android:exported="false"/>
+              <activity android:name=".XtreamInputActivity" android:exported="false"/>
+              <activity android:name=".StbInputActivity" android:exported="false"/>
               <activity android:name=".PlayerActivity" android:exported="false"/>
 
             </application>
           </manifest>
           EOF
 
-          # Layouts
+          # ---------- Layouts ----------
+          # Menu 3 choix
           cat > app/src/main/res/layout/activity_main.xml <<'EOF'
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical"
@@ -113,21 +116,109 @@ jobs:
               android:gravity="center"
               android:layout_width="match_parent"
               android:layout_height="match_parent">
+              <Button
+                  android:id="@+id/btn_m3u"
+                  android:text="M3U / M3U8"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"/>
+              <Button
+                  android:id="@+id/btn_xtream"
+                  android:text="Xtream Codes"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp"/>
+              <Button
+                  android:id="@+id/btn_stb"
+                  android:text="STB (MAG/Stalker)"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp"/>
+          </LinearLayout>
+          EOF
+
+          # M3U : saisie URL
+          cat > app/src/main/res/layout/activity_m3u_input.xml <<'EOF'
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:padding="16dp"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
               <EditText
                   android:id="@+id/url_input"
-                  android:hint="https://.../playlist.m3u8"
+                  android:hint="https://.../playlist.m3u8 (ou .m3u)"
                   android:inputType="textUri"
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content" />
               <Button
-                  android:id="@+id/btn_play"
-                  android:text="Lire M3U/M3U8"
+                  android:id="@+id/btn_play_m3u"
+                  android:text="Lire"
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content"
                   android:layout_marginTop="16dp" />
           </LinearLayout>
           EOF
 
+          # Xtream : host/user/pass (placeholder)
+          cat > app/src/main/res/layout/activity_xtream_input.xml <<'EOF'
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:padding="16dp"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+              <EditText
+                  android:id="@+id/xt_host"
+                  android:hint="http://host:port"
+                  android:inputType="textUri"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"/>
+              <EditText
+                  android:id="@+id/xt_user"
+                  android:hint="username"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"/>
+              <EditText
+                  android:id="@+id/xt_pass"
+                  android:hint="password"
+                  android:inputType="textPassword"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"/>
+              <Button
+                  android:id="@+id/xt_save"
+                  android:text="Enregistrer (à brancher)"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp"/>
+          </LinearLayout>
+          EOF
+
+          # STB : portal + MAC (placeholder)
+          cat > app/src/main/res/layout/activity_stb_input.xml <<'EOF'
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:padding="16dp"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+              <EditText
+                  android:id="@+id/stb_portal"
+                  android:hint="http://host/stalker_portal/"
+                  android:inputType="textUri"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"/>
+              <EditText
+                  android:id="@+id/stb_mac"
+                  android:hint="MAC (ex: 00:1A:79:xx:xx:xx)"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"/>
+              <Button
+                  android:id="@+id/stb_save"
+                  android:text="Enregistrer (à brancher)"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp"/>
+          </LinearLayout>
+          EOF
+
+          # Player
           cat > app/src/main/res/layout/activity_player.xml <<'EOF'
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="match_parent"
@@ -144,8 +235,29 @@ jobs:
           <resources><string name="app_name">World TV</string></resources>
           EOF
 
-          # Java
+          # ---------- Java ----------
           cat > app/src/main/java/com/worldtv/MainActivity.java <<'EOF'
+          package com.worldtv;
+
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.os.Bundle;
+
+          public class MainActivity extends Activity {
+              @Override protected void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  setContentView(R.layout.activity_main);
+                  findViewById(R.id.btn_m3u).setOnClickListener(v ->
+                      startActivity(new Intent(this, M3UInputActivity.class)));
+                  findViewById(R.id.btn_xtream).setOnClickListener(v ->
+                      startActivity(new Intent(this, XtreamInputActivity.class)));
+                  findViewById(R.id.btn_stb).setOnClickListener(v ->
+                      startActivity(new Intent(this, StbInputActivity.class)));
+              }
+          }
+          EOF
+
+          cat > app/src/main/java/com/worldtv/M3UInputActivity.java <<'EOF'
           package com.worldtv;
 
           import android.app.Activity;
@@ -154,17 +266,66 @@ jobs:
           import android.widget.Button;
           import android.widget.EditText;
 
-          public class MainActivity extends Activity {
+          public class M3UInputActivity extends Activity {
               @Override protected void onCreate(Bundle b) {
                   super.onCreate(b);
-                  setContentView(R.layout.activity_main);
+                  setContentView(R.layout.activity_m3u_input);
                   EditText url = findViewById(R.id.url_input);
-                  Button play = findViewById(R.id.btn_play);
+                  Button play = findViewById(R.id.btn_play_m3u);
                   play.setOnClickListener(v -> {
                       String u = url.getText().toString().trim();
                       Intent i = new Intent(this, PlayerActivity.class);
                       i.putExtra("url", u);
                       startActivity(i);
+                  });
+              }
+          }
+          EOF
+
+          cat > app/src/main/java/com/worldtv/XtreamInputActivity.java <<'EOF'
+          package com.worldtv;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.widget.Button;
+          import android.widget.EditText;
+          import android.widget.Toast;
+
+          public class XtreamInputActivity extends Activity {
+              @Override protected void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  setContentView(R.layout.activity_xtream_input);
+                  EditText host = findViewById(R.id.xt_host);
+                  EditText user = findViewById(R.id.xt_user);
+                  EditText pass = findViewById(R.id.xt_pass);
+                  Button save = findViewById(R.id.xt_save);
+                  save.setOnClickListener(v -> {
+                      // TODO: stocker et brancher l'API Xtream
+                      Toast.makeText(this,"Xtream enregistré (à brancher)",Toast.LENGTH_SHORT).show();
+                  });
+              }
+          }
+          EOF
+
+          cat > app/src/main/java/com/worldtv/StbInputActivity.java <<'EOF'
+          package com.worldtv;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.widget.Button;
+          import android.widget.EditText;
+          import android.widget.Toast;
+
+          public class StbInputActivity extends Activity {
+              @Override protected void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  setContentView(R.layout.activity_stb_input);
+                  EditText portal = findViewById(R.id.stb_portal);
+                  EditText mac = findViewById(R.id.stb_mac);
+                  Button save = findViewById(R.id.stb_save);
+                  save.setOnClickListener(v -> {
+                      // TODO: brancher handshake MAG/Stalker
+                      Toast.makeText(this,"STB enregistré (à brancher)",Toast.LENGTH_SHORT).show();
                   });
               }
           }
@@ -202,7 +363,7 @@ jobs:
           }
           EOF
 
-      - name: Build Debug APK (Gradle 8.7)
+      - name: Build Debug APK
         run: gradle --no-build-cache assembleDebug
 
       - name: Upload APK

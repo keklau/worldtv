@@ -1,4 +1,4 @@
-name: Build Android APK (WorldTV – SDK 34, Media3)
+name: Build Android APK (WorldTV – fix Media3 UI)
 
 on:
   workflow_dispatch: {}
@@ -13,34 +13,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate Android project
+      - name: Generate Android project (SDK 34, AGP 8.2.2, Media3 UI)
         run: |
           set -e
           mkdir -p app/src/main/java/com/worldtv
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
-          # settings.gradle
+          # --- settings.gradle : places repositories in settings (modern) ---
           cat > settings.gradle <<'EOF'
-          include ':app'
-          EOF
-
-          # build.gradle (root)
-          cat > build.gradle <<'EOF'
-          buildscript {
-            repositories { google(); mavenCentral() }
-            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+          pluginManagement {
+            repositories {
+              gradlePluginPortal()
+              google()
+              mavenCentral()
+            }
           }
-          allprojects { repositories { google(); mavenCentral() } }
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+            repositories {
+              google()
+              mavenCentral()
+            }
+          }
+          rootProject.name = "worldtv"
+          include(":app")
           EOF
 
-          # app/build.gradle
+          # --- build.gradle (root) : minimal, no legacy buildscript ---
+          cat > build.gradle <<'EOF'
+          // empty on purpose; repositories handled in settings.gradle
+          EOF
+
+          # --- app/build.gradle : AGP 8.2.2, SDK 34, Media3 (incl. UI) ---
           cat > app/build.gradle <<'EOF'
-          plugins { id 'com.android.application' }
+          plugins {
+            id 'com.android.application' version '8.2.2'
+          }
 
           android {
             namespace "com.worldtv"
             compileSdk 34
+
             defaultConfig {
               applicationId "com.worldtv"
               minSdk 21
@@ -48,19 +62,25 @@ jobs:
               versionCode 1
               versionName "1.0"
             }
-            buildTypes { release { minifyEnabled false } }
+
+            buildTypes {
+              release {
+                minifyEnabled false
+              }
+            }
           }
 
           dependencies {
             implementation 'androidx.appcompat:appcompat:1.6.1'
             implementation 'com.google.android.material:material:1.9.0'
+
             implementation 'androidx.media3:media3-exoplayer:1.3.1'
             implementation 'androidx.media3:media3-exoplayer-hls:1.3.1'
             implementation 'androidx.media3:media3-ui:1.3.1'
           }
           EOF
 
-          # AndroidManifest.xml (PAS de package= ; MainActivity exportée, PlayerActivity non)
+          # --- Manifest : MainActivity = launcher (exported=true), PlayerActivity sans intent-filter ---
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <application
@@ -88,7 +108,7 @@ jobs:
           </manifest>
           EOF
 
-          # Layouts
+          # --- Layouts ---
           cat > app/src/main/res/layout/activity_main.xml <<'EOF'
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical"
@@ -102,7 +122,6 @@ jobs:
                   android:text="Lire via M3U/M3U8"
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content" />
-
           </LinearLayout>
           EOF
 
@@ -141,14 +160,14 @@ jobs:
           </FrameLayout>
           EOF
 
-          # strings.xml
+          # --- strings.xml ---
           cat > app/src/main/res/values/strings.xml <<'EOF'
           <resources>
             <string name="app_name">World TV</string>
           </resources>
           EOF
 
-          # Java sources
+          # --- Java sources ---
           cat > app/src/main/java/com/worldtv/MainActivity.java <<'EOF'
           package com.worldtv;
 
@@ -161,10 +180,8 @@ jobs:
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   setContentView(R.layout.activity_main);
-
-                  findViewById(R.id.btn_m3u).setOnClickListener(v -> {
-                      startActivity(new Intent(this, M3UInputActivity.class));
-                  });
+                  findViewById(R.id.btn_m3u).setOnClickListener(v ->
+                      startActivity(new Intent(this, M3UInputActivity.class)));
               }
           }
           EOF
@@ -186,6 +203,7 @@ jobs:
 
                   EditText url = findViewById(R.id.url_input);
                   Button play = findViewById(R.id.btn_play_m3u);
+
                   play.setOnClickListener(v -> {
                       String u = url.getText().toString().trim();
                       Intent i = new Intent(this, PlayerActivity.class);

@@ -1,4 +1,4 @@
-name: Build Android APK (WorldTV complet)
+name: Build Android APK (WorldTV – SDK 34, Media3)
 
 on:
   workflow_dispatch: {}
@@ -13,27 +13,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate Android app project
+      - name: Generate Android project
         run: |
           set -e
           mkdir -p app/src/main/java/com/worldtv
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
+          # settings.gradle
           cat > settings.gradle <<'EOF'
           include ':app'
           EOF
 
+          # build.gradle (root)
           cat > build.gradle <<'EOF'
           buildscript {
             repositories { google(); mavenCentral() }
             dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
           }
-          allprojects {
-            repositories { google(); mavenCentral() }
-          }
+          allprojects { repositories { google(); mavenCentral() } }
           EOF
 
+          # app/build.gradle
           cat > app/build.gradle <<'EOF'
           plugins { id 'com.android.application' }
 
@@ -47,11 +48,7 @@ jobs:
               versionCode 1
               versionName "1.0"
             }
-            buildTypes {
-              release {
-                minifyEnabled false
-              }
-            }
+            buildTypes { release { minifyEnabled false } }
           }
 
           dependencies {
@@ -63,75 +60,182 @@ jobs:
           }
           EOF
 
+          # AndroidManifest.xml (PAS de package= ; MainActivity exportée, PlayerActivity non)
           cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.worldtv">
-              <application
-                  android:label="World TV"
-                  android:theme="@style/Theme.Material3.DayNight.NoActionBar">
-                  <activity android:name=".PlayerActivity">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-              </application>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application
+                android:label="World TV"
+                android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+
+              <activity
+                  android:name=".MainActivity"
+                  android:exported="true">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+
+              <activity
+                  android:name=".M3UInputActivity"
+                  android:exported="false" />
+
+              <activity
+                  android:name=".PlayerActivity"
+                  android:exported="false" />
+
+            </application>
           </manifest>
+          EOF
+
+          # Layouts
+          cat > app/src/main/res/layout/activity_main.xml <<'EOF'
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:padding="24dp"
+              android:gravity="center"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+
+              <Button
+                  android:id="@+id/btn_m3u"
+                  android:text="Lire via M3U/M3U8"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content" />
+
+          </LinearLayout>
+          EOF
+
+          cat > app/src/main/res/layout/activity_m3u_input.xml <<'EOF'
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:padding="16dp"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+
+              <EditText
+                  android:id="@+id/url_input"
+                  android:hint="https://.../playlist.m3u8"
+                  android:inputType="textUri"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content" />
+
+              <Button
+                  android:id="@+id/btn_play_m3u"
+                  android:text="Lire"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp" />
+          </LinearLayout>
+          EOF
+
+          cat > app/src/main/res/layout/activity_player.xml <<'EOF'
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+
+              <androidx.media3.ui.StyledPlayerView
+                  android:id="@+id/player_view"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent" />
+          </FrameLayout>
+          EOF
+
+          # strings.xml
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+          <resources>
+            <string name="app_name">World TV</string>
+          </resources>
+          EOF
+
+          # Java sources
+          cat > app/src/main/java/com/worldtv/MainActivity.java <<'EOF'
+          package com.worldtv;
+
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.os.Bundle;
+
+          public class MainActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_main);
+
+                  findViewById(R.id.btn_m3u).setOnClickListener(v -> {
+                      startActivity(new Intent(this, M3UInputActivity.class));
+                  });
+              }
+          }
+          EOF
+
+          cat > app/src/main/java/com/worldtv/M3UInputActivity.java <<'EOF'
+          package com.worldtv;
+
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.os.Bundle;
+          import android.widget.Button;
+          import android.widget.EditText;
+
+          public class M3UInputActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_m3u_input);
+
+                  EditText url = findViewById(R.id.url_input);
+                  Button play = findViewById(R.id.btn_play_m3u);
+                  play.setOnClickListener(v -> {
+                      String u = url.getText().toString().trim();
+                      Intent i = new Intent(this, PlayerActivity.class);
+                      i.putExtra("url", u);
+                      startActivity(i);
+                  });
+              }
+          }
           EOF
 
           cat > app/src/main/java/com/worldtv/PlayerActivity.java <<'EOF'
           package com.worldtv;
 
+          import android.net.Uri;
           import android.os.Bundle;
           import androidx.appcompat.app.AppCompatActivity;
-          import androidx.media3.ui.StyledPlayerView;
           import androidx.media3.common.MediaItem;
           import androidx.media3.exoplayer.ExoPlayer;
-          import android.net.Uri;
-          import com.worldtv.R;
+          import androidx.media3.ui.StyledPlayerView;
 
           public class PlayerActivity extends AppCompatActivity {
+              private ExoPlayer player;
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   setContentView(R.layout.activity_player);
 
-                  StyledPlayerView playerView = findViewById(R.id.player_view);
-                  ExoPlayer player = new ExoPlayer.Builder(this).build();
-                  playerView.setPlayer(player);
+                  String url = getIntent().getStringExtra("url");
+                  if (url == null || url.isEmpty()) {
+                      url = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+                  }
 
-                  // Exemple d’URL M3U8 (modifiable plus tard dynamiquement)
-                  String url = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
-                  MediaItem mediaItem = MediaItem.fromUri(Uri.parse(url));
-                  player.setMediaItem(mediaItem);
+                  player = new ExoPlayer.Builder(this).build();
+                  StyledPlayerView pv = findViewById(R.id.player_view);
+                  pv.setPlayer(player);
+                  player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
                   player.prepare();
                   player.play();
               }
+
+              @Override
+              protected void onDestroy() {
+                  super.onDestroy();
+                  if (player != null) {
+                      player.release();
+                      player = null;
+                  }
+              }
           }
-          EOF
-
-          cat > app/src/main/res/layout/activity_player.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:app="http://schemas.android.com/apk/res-auto"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:orientation="vertical">
-
-              <androidx.media3.ui.StyledPlayerView
-                  android:id="@+id/player_view"
-                  android:layout_width="match_parent"
-                  android:layout_height="match_parent"
-                  app:show_buffering="always"
-                  app:controller_auto_show="true" />
-
-          </LinearLayout>
-          EOF
-
-          cat > app/src/main/res/values/strings.xml <<'EOF'
-          <resources>
-              <string name="app_name">World TV</string>
-          </resources>
           EOF
 
       - name: Set up JDK 17

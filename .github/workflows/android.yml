@@ -8,33 +8,35 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Generate Android app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate Android app project
         run: |
           set -e
           mkdir -p app/src/main/java/com/worldtv
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
-          # settings.gradle
           cat > settings.gradle <<'EOF'
           include ':app'
           EOF
 
-          # build.gradle (racine)
           cat > build.gradle <<'EOF'
           buildscript {
             repositories { google(); mavenCentral() }
             dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
           }
-          allprojects { repositories { google(); mavenCentral() } }
+          allprojects {
+            repositories { google(); mavenCentral() }
+          }
           EOF
 
-          # app/build.gradle
           cat > app/build.gradle <<'EOF'
           plugins { id 'com.android.application' }
+
           android {
             namespace "com.worldtv"
             compileSdk 34
@@ -45,8 +47,13 @@ jobs:
               versionCode 1
               versionName "1.0"
             }
-            buildTypes { release { minifyEnabled false } }
+            buildTypes {
+              release {
+                minifyEnabled false
+              }
+            }
           }
+
           dependencies {
             implementation 'androidx.appcompat:appcompat:1.6.1'
             implementation 'com.google.android.material:material:1.9.0'
@@ -56,192 +63,91 @@ jobs:
           }
           EOF
 
-          # AndroidManifest.xml
           cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET"/>
-            <application
-                android:label="World TV"
-                android:theme="@style/Theme.Material3.DayNight.NoActionBar">
-              <activity android:name=".PlayerActivity" android:exported="false"/>
-              <activity android:name=".M3UInputActivity" android:exported="false"/>
-              <activity android:name=".XtreamInputActivity" android:exported="false"/>
-              <activity android:name=".StbInputActivity" android:exported="false"/>
-              <activity android:name=".MainActivity" android:exported="true">
-                <intent-filter>
-                  <action android:name="android.intent.action.MAIN"/>
-                  <category android:name="android.intent.category.LAUNCHER"/>
-                </intent-filter>
-              </activity>
-            </application>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.worldtv">
+              <application
+                  android:label="World TV"
+                  android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+                  <activity android:name=".PlayerActivity">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
           </manifest>
-          EOF
-
-          # Layouts
-          cat > app/src/main/res/layout/activity_main.xml <<'EOF'
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:orientation="vertical" android:gravity="center"
-              android:layout_width="match_parent" android:layout_height="match_parent"
-              android:padding="24dp">
-              <Button
-                  android:id="@+id/btn_m3u"
-                  android:text="Connexion M3U"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"/>
-              <Button
-                  android:id="@+id/btn_xtream"
-                  android:text="Connexion Xtream"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:layout_marginTop="16dp"/>
-              <Button
-                  android:id="@+id/btn_stb"
-                  android:text="Connexion STB"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:layout_marginTop="16dp"/>
-          </LinearLayout>
-          EOF
-
-          cat > app/src/main/res/layout/activity_m3u_input.xml <<'EOF'
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:orientation="vertical" android:padding="16dp"
-              android:layout_width="match_parent" android:layout_height="match_parent">
-              <EditText
-                  android:id="@+id/url_input"
-                  android:hint="URL M3U ou M3U8"
-                  android:inputType="textUri"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"/>
-              <Button
-                  android:id="@+id/btn_play_m3u"
-                  android:text="Lire"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:layout_marginTop="16dp"/>
-          </LinearLayout>
-          EOF
-
-          cat > app/src/main/res/layout/activity_player.xml <<'EOF'
-          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent" android:layout_height="match_parent">
-              <androidx.media3.ui.StyledPlayerView
-                  android:id="@+id/player_view"
-                  android:layout_width="match_parent"
-                  android:layout_height="match_parent"/>
-          </FrameLayout>
-          EOF
-
-          # Java
-          cat > app/src/main/java/com/worldtv/MainActivity.java <<'EOF'
-          package com.worldtv;
-          import android.app.Activity;
-          import android.content.Intent;
-          import android.os.Bundle;
-          public class MainActivity extends Activity {
-              @Override protected void onCreate(Bundle b) {
-                  super.onCreate(b);
-                  setContentView(R.layout.activity_main);
-                  findViewById(R.id.btn_m3u).setOnClickListener(v ->
-                      startActivity(new Intent(this, M3UInputActivity.class)));
-                  findViewById(R.id.btn_xtream).setOnClickListener(v ->
-                      startActivity(new Intent(this, XtreamInputActivity.class)));
-                  findViewById(R.id.btn_stb).setOnClickListener(v ->
-                      startActivity(new Intent(this, StbInputActivity.class)));
-              }
-          }
-          EOF
-
-          cat > app/src/main/java/com/worldtv/M3UInputActivity.java <<'EOF'
-          package com.worldtv;
-          import android.app.Activity;
-          import android.content.Intent;
-          import android.os.Bundle;
-          import android.widget.Button;
-          import android.widget.EditText;
-          public class M3UInputActivity extends Activity {
-              @Override protected void onCreate(Bundle b) {
-                  super.onCreate(b);
-                  setContentView(R.layout.activity_m3u_input);
-                  EditText urlInput = findViewById(R.id.url_input);
-                  Button play = findViewById(R.id.btn_play_m3u);
-                  play.setOnClickListener(v -> {
-                      String url = urlInput.getText().toString();
-                      Intent i = new Intent(this, PlayerActivity.class);
-                      i.putExtra("url", url);
-                      startActivity(i);
-                  });
-              }
-          }
           EOF
 
           cat > app/src/main/java/com/worldtv/PlayerActivity.java <<'EOF'
           package com.worldtv;
-          import android.net.Uri;
+
           import android.os.Bundle;
           import androidx.appcompat.app.AppCompatActivity;
+          import androidx.media3.ui.StyledPlayerView;
           import androidx.media3.common.MediaItem;
           import androidx.media3.exoplayer.ExoPlayer;
-          import androidx.media3.ui.StyledPlayerView;
+          import android.net.Uri;
+          import com.worldtv.R;
+
           public class PlayerActivity extends AppCompatActivity {
-              private ExoPlayer player;
-              @Override protected void onCreate(Bundle savedInstanceState) {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   setContentView(R.layout.activity_player);
-                  String url = getIntent().getStringExtra("url");
-                  player = new ExoPlayer.Builder(this).build();
-                  StyledPlayerView pv = findViewById(R.id.player_view);
-                  pv.setPlayer(player);
-                  player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
+
+                  StyledPlayerView playerView = findViewById(R.id.player_view);
+                  ExoPlayer player = new ExoPlayer.Builder(this).build();
+                  playerView.setPlayer(player);
+
+                  // Exemple d’URL M3U8 (modifiable plus tard dynamiquement)
+                  String url = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+                  MediaItem mediaItem = MediaItem.fromUri(Uri.parse(url));
+                  player.setMediaItem(mediaItem);
                   player.prepare();
                   player.play();
               }
-              @Override protected void onDestroy() {
-                  super.onDestroy();
-                  if (player != null) player.release();
-              }
           }
           EOF
 
-          cat > app/src/main/java/com/worldtv/XtreamInputActivity.java <<'EOF'
-          package com.worldtv;
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.widget.EditText;
-          public class XtreamInputActivity extends Activity {
-              @Override protected void onCreate(Bundle b) {
-                  super.onCreate(b);
-                  EditText e = new EditText(this);
-                  e.setHint("Connexion Xtream (à implémenter)");
-                  setContentView(e);
-              }
-          }
+          cat > app/src/main/res/layout/activity_player.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical">
+
+              <androidx.media3.ui.StyledPlayerView
+                  android:id="@+id/player_view"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent"
+                  app:show_buffering="always"
+                  app:controller_auto_show="true" />
+
+          </LinearLayout>
           EOF
 
-          cat > app/src/main/java/com/worldtv/StbInputActivity.java <<'EOF'
-          package com.worldtv;
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.widget.EditText;
-          public class StbInputActivity extends Activity {
-              @Override protected void onCreate(Bundle b) {
-                  super.onCreate(b);
-                  EditText e = new EditText(this);
-                  e.setHint("Connexion STB (à implémenter)");
-                  setContentView(e);
-              }
-          }
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+          <resources>
+              <string name="app_name">World TV</string>
+          </resources>
           EOF
 
-      - uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v3
-      - run: gradle assembleDebug
-      - uses: actions/upload-artifact@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Debug APK
+        run: gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: WorldTV-debug-apk
           path: app/build/outputs/apk/debug/*.apk
-
-

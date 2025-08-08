@@ -1,4 +1,4 @@
-name: WorldTV V3.1 – Xtream LIVE (Gradle 8.7)
+name: WorldTV – build auto (profils + M3U + Xtream LIVE)
 
 on:
   workflow_dispatch: {}
@@ -8,11 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      # Verrouiller Gradle 8.7 (éviter Gradle 9)
+      # On fige Gradle 8.7 (stable avec AGP 8.5.2)
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -25,7 +24,8 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Generate Android project (V3.1)
+      # >>> ICI on génère TOUT le projet Android <<<
+      - name: Generate Android project
         run: |
           set -e
           mkdir -p app/src/main/java/com/worldtv/xtream
@@ -33,11 +33,9 @@ jobs:
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
-          # ---------- settings.gradle ----------
+          # settings.gradle
           cat > settings.gradle <<'EOF'
-          pluginManagement {
-            repositories { gradlePluginPortal(); google(); mavenCentral() }
-          }
+          pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral() } }
           dependencyResolutionManagement {
             repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
             repositories { google(); mavenCentral() }
@@ -46,31 +44,18 @@ jobs:
           include(":app")
           EOF
 
-          # ---------- build.gradle (root) ----------
-          cat > build.gradle <<'EOF'
-          // plugins/repositories gérés dans settings + module
-          EOF
+          # build.gradle (root)
+          echo "// generated" > build.gradle
 
-          # ---------- app/build.gradle ----------
+          # app/build.gradle (AGP 8.5.2, SDK 34, Media3)
           cat > app/build.gradle <<'EOF'
-          plugins {
-            id 'com.android.application' version '8.5.2'
-          }
+          plugins { id 'com.android.application' version '8.5.2' }
           android {
             namespace "com.worldtv"
             compileSdk 34
-            defaultConfig {
-              applicationId "com.worldtv"
-              minSdk 21
-              targetSdk 34
-              versionCode 1
-              versionName "1.0"
-            }
+            defaultConfig { applicationId "com.worldtv"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }
             buildTypes { release { minifyEnabled false } }
-            compileOptions {
-              sourceCompatibility JavaVersion.VERSION_17
-              targetCompatibility JavaVersion.VERSION_17
-            }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
           }
           dependencies {
             implementation 'androidx.appcompat:appcompat:1.6.1'
@@ -81,81 +66,48 @@ jobs:
           }
           EOF
 
-          # ---------- AndroidManifest.xml ----------
+          # Manifest
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET"/>
-            <application
-                android:label="World TV"
-                android:theme="@style/Theme.Material3.DayNight.NoActionBar">
-
-              <activity
-                  android:name=".ProfilesActivity"
-                  android:exported="true">
+            <application android:label="World TV" android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+              <activity android:name=".ProfilesActivity" android:exported="true">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN"/>
                   <category android:name="android.intent.category.LAUNCHER"/>
                 </intent-filter>
               </activity>
-
               <activity android:name=".AddM3UActivity" android:exported="false"/>
               <activity android:name=".AddXtreamActivity" android:exported="false"/>
               <activity android:name=".AddStbActivity" android:exported="false"/>
-
               <activity android:name=".M3UChannelListActivity" android:exported="false"/>
-
-              <!-- Xtream LIVE -->
               <activity android:name=".xtream.XtreamLiveCategoriesActivity" android:exported="false"/>
               <activity android:name=".xtream.XtreamLiveChannelsActivity" android:exported="false"/>
-
               <activity android:name=".PlayerActivity" android:exported="false"/>
-
             </application>
           </manifest>
           EOF
 
-          # ---------- layouts ----------
+          # Layouts (profils, adders, listes, player)
           cat > app/src/main/res/layout/activity_profiles.xml <<'EOF'
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:orientation="vertical"
-              android:padding="16dp"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent">
-              <LinearLayout
-                  android:orientation="horizontal"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content">
-                  <Button
-                      android:id="@+id/btn_add_m3u"
-                      android:text="+ M3U"
-                      android:layout_width="0dp"
-                      android:layout_weight="1"
-                      android:layout_height="wrap_content"/>
-                  <Button
-                      android:id="@+id/btn_add_xtream"
-                      android:text="+ Xtream"
-                      android:layout_width="0dp"
-                      android:layout_weight="1"
-                      android:layout_height="wrap_content"
+              android:orientation="vertical" android:padding="16dp"
+              android:layout_width="match_parent" android:layout_height="match_parent">
+              <LinearLayout android:orientation="horizontal"
+                  android:layout_width="match_parent" android:layout_height="wrap_content">
+                  <Button android:id="@+id/btn_add_m3u" android:text="+ M3U"
+                      android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"/>
+                  <Button android:id="@+id/btn_add_xtream" android:text="+ Xtream"
+                      android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
                       android:layout_marginStart="8dp"/>
-                  <Button
-                      android:id="@+id/btn_add_stb"
-                      android:text="+ STB"
-                      android:layout_width="0dp"
-                      android:layout_weight="1"
-                      android:layout_height="wrap_content"
+                  <Button android:id="@+id/btn_add_stb" android:text="+ STB"
+                      android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
                       android:layout_marginStart="8dp"/>
               </LinearLayout>
-              <TextView
-                  android:text="Profils enregistrés (appui long pour supprimer)"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:paddingTop="12dp"/>
-              <ListView
-                  android:id="@+id/list_profiles"
-                  android:layout_width="match_parent"
-                  android:layout_height="0dp"
-                  android:layout_weight="1"/>
+              <TextView android:text="Profils (appui long pour supprimer)"
+                  android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="12dp"/>
+              <ListView android:id="@+id/list_profiles" android:layout_width="match_parent"
+                  android:layout_height="0dp" android:layout_weight="1"/>
           </LinearLayout>
           EOF
 
@@ -165,8 +117,7 @@ jobs:
               android:layout_width="match_parent" android:layout_height="match_parent">
               <EditText android:id="@+id/ed_name" android:hint="Nom du profil"
                   android:layout_width="match_parent" android:layout_height="wrap_content"/>
-              <EditText android:id="@+id/ed_url" android:hint="URL M3U/M3U8"
-                  android:inputType="textUri"
+              <EditText android:id="@+id/ed_url" android:hint="URL M3U/M3U8" android:inputType="textUri"
                   android:layout_width="match_parent" android:layout_height="wrap_content"/>
               <Button android:id="@+id/btn_save" android:text="Enregistrer"
                   android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"/>
@@ -179,8 +130,7 @@ jobs:
               android:layout_width="match_parent" android:layout_height="match_parent">
               <EditText android:id="@+id/ed_name" android:hint="Nom du profil"
                   android:layout_width="match_parent" android:layout_height="wrap_content"/>
-              <EditText android:id="@+id/ed_host" android:hint="http://host:port"
-                  android:inputType="textUri"
+              <EditText android:id="@+id/ed_host" android:hint="http://host:port" android:inputType="textUri"
                   android:layout_width="match_parent" android:layout_height="wrap_content"/>
               <EditText android:id="@+id/ed_user" android:hint="username"
                   android:layout_width="match_parent" android:layout_height="wrap_content"/>
@@ -197,8 +147,7 @@ jobs:
               android:layout_width="match_parent" android:layout_height="match_parent">
               <EditText android:id="@+id/ed_name" android:hint="Nom du profil"
                   android:layout_width="match_parent" android:layout_height="wrap_content"/>
-              <EditText android:id="@+id/ed_portal" android:hint="http://host/stalker_portal/"
-                  android:inputType="textUri"
+              <EditText android:id="@+id/ed_portal" android:hint="http://host/stalker_portal/" android:inputType="textUri"
                   android:layout_width="match_parent" android:layout_height="wrap_content"/>
               <EditText android:id="@+id/ed_mac" android:hint="MAC (ex: 00:1A:79:xx:xx:xx)"
                   android:layout_width="match_parent" android:layout_height="wrap_content"/>
@@ -216,57 +165,41 @@ jobs:
           EOF
 
           cat > app/src/main/res/layout/activity_player.xml <<'EOF'
-          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:orientation="vertical"
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="match_parent" android:layout_height="match_parent">
               <androidx.media3.ui.PlayerView
                   android:id="@+id/player_view"
                   android:layout_width="match_parent"
                   android:layout_height="match_parent"/>
-          </LinearLayout>
+          </FrameLayout>
           EOF
 
-          # ---------- strings ----------
-          cat > app/src/main/res/values/strings.xml <<'EOF'
-          <resources>
-            <string name="app_name">World TV</string>
-          </resources>
-          EOF
+          # strings
+          echo '<resources><string name="app_name">World TV</string></resources>' \
+            > app/src/main/res/values/strings.xml
 
-          # ---------- Utils ----------
+          # ---------- Java utils ----------
           cat > app/src/main/java/com/worldtv/ProfileManager.java <<'EOF'
           package com.worldtv;
-          import android.content.Context;
-          import android.content.SharedPreferences;
-          import org.json.*;
-          import java.util.*;
-
+          import android.content.*; import org.json.*;
           public class ProfileManager {
-              private static final String PREF = "worldtv_profiles";
-              private static final String KEY = "profiles_json";
-
-              public static JSONArray load(Context ctx){
-                  SharedPreferences sp = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE);
-                  String json = sp.getString(KEY, "[]");
-                  try { return new JSONArray(json); } catch (Exception e){ return new JSONArray(); }
-              }
-              public static void save(Context ctx, JSONArray arr){
-                  ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-                          .edit().putString(KEY, arr.toString()).apply();
-              }
-              public static void addProfile(Context ctx, JSONObject profile){
-                  JSONArray arr = load(ctx);
-                  arr.put(profile);
-                  save(ctx, arr);
-              }
-              public static void removeById(Context ctx, long id){
-                  JSONArray arr = load(ctx); JSONArray out = new JSONArray();
-                  for(int i=0;i<arr.length();i++){
-                      JSONObject o = arr.optJSONObject(i);
-                      if (o!=null && o.optLong("id",-1)!=id) out.put(o);
-                  }
-                  save(ctx, out);
-              }
+            private static final String PREF="worldtv_profiles", KEY="profiles_json";
+            public static JSONArray load(Context c){
+              String s=c.getSharedPreferences(PREF,0).getString(KEY,"[]");
+              try{return new JSONArray(s);}catch(Exception e){return new JSONArray();}
+            }
+            public static void save(Context c, JSONArray a){
+              c.getSharedPreferences(PREF,0).edit().putString(KEY,a.toString()).apply();
+            }
+            public static void addProfile(Context c, JSONObject o){
+              JSONArray a=load(c); a.put(o); save(c,a);
+            }
+            public static void removeById(Context c,long id){
+              JSONArray a=load(c),b=new JSONArray();
+              for(int i=0;i<a.length();i++){ JSONObject o=a.optJSONObject(i);
+                if(o!=null && o.optLong("id",-1)!=id) b.put(o);}
+              save(c,b);
+            }
           }
           EOF
 
@@ -274,438 +207,205 @@ jobs:
           package com.worldtv;
           import java.util.*;
           public class M3UParser {
-              public static ArrayList<String[]> parse(String text){
-                  ArrayList<String[]> out = new ArrayList<>();
-                  String[] lines = text.split("\\r?\\n");
-                  String name = null;
-                  for(String line: lines){
-                      String L=line.trim();
-                      if (L.startsWith("#EXTINF:")){
-                          int k = L.indexOf(",");
-                          name = (k>=0 && k+1<L.length())? L.substring(k+1).trim() : "Sans nom";
-                      } else if (!L.isEmpty() && !L.startsWith("#")){
-                          out.add(new String[]{ name==null?"Sans nom":name, L });
-                          name = null;
-                      }
-                  }
-                  return out;
+            public static ArrayList<String[]> parse(String t){
+              ArrayList<String[]> out=new ArrayList<>(); String name=null;
+              for(String L:t.split("\\r?\\n")){
+                L=L.trim();
+                if(L.startsWith("#EXTINF:")){ int k=L.indexOf(","); name=(k>=0&&k+1<L.length())?L.substring(k+1).trim():"Sans nom";}
+                else if(!L.isEmpty() && !L.startsWith("#")){ out.add(new String[]{name==null?"Sans nom":name,L}); name=null; }
               }
+              return out;
+            }
           }
           EOF
 
-          # ---------- Core activities (Profils, Adders, M3U, Player) ----------
+          # ---------- Activities noyau ----------
           cat > app/src/main/java/com/worldtv/ProfilesActivity.java <<'EOF'
           package com.worldtv;
-
-          import android.app.Activity;
-          import android.app.AlertDialog;
-          import android.content.Intent;
-          import android.os.Bundle;
-          import android.widget.*;
-          import org.json.*;
-          import java.util.*;
-
+          import android.app.*; import android.os.*; import android.content.*; import android.widget.*; import org.json.*; import java.util.*;
           public class ProfilesActivity extends Activity {
-              ListView list;
-              JSONArray data;
-
-              @Override protected void onCreate(Bundle b){
-                  super.onCreate(b);
-                  setContentView(R.layout.activity_profiles);
-                  list = findViewById(R.id.list_profiles);
-                  findViewById(R.id.btn_add_m3u).setOnClickListener(v -> startActivity(new Intent(this, AddM3UActivity.class)));
-                  findViewById(R.id.btn_add_xtream).setOnClickListener(v -> startActivity(new Intent(this, AddXtreamActivity.class)));
-                  findViewById(R.id.btn_add_stb).setOnClickListener(v -> startActivity(new Intent(this, AddStbActivity.class)));
-
-                  list.setOnItemClickListener((a,v,pos,id)-> onItemClick(pos));
-                  list.setOnItemLongClickListener((a,v,pos,id)-> { onItemLongClick(pos); return true; });
-              }
-
-              @Override protected void onResume(){ super.onResume(); refresh(); }
-
-              void refresh(){
-                  data = ProfileManager.load(this);
-                  ArrayList<String> names = new ArrayList<>();
-                  for(int i=0;i<data.length();i++){
-                      JSONObject o = data.optJSONObject(i);
-                      String type = o.optString("type","?");
-                      String name = o.optString("name","Sans nom");
-                      names.add(type + " • " + name);
-                  }
-                  list.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, names));
-              }
-
-              void onItemClick(int pos){
-                  JSONObject o = data.optJSONObject(pos);
-                  if (o==null) return;
-                  String type = o.optString("type","");
-                  if ("M3U".equals(type)){
-                      String url = o.optString("url","");
-                      Intent i = new Intent(this, M3UChannelListActivity.class);
-                      i.putExtra("url", url);
-                      startActivity(i);
-                  } else if ("XTREAM".equals(type)){
-                      Intent i = new Intent(this, com.worldtv.xtream.XtreamLiveCategoriesActivity.class);
-                      i.putExtra("host", o.optString("host",""));
-                      i.putExtra("user", o.optString("user",""));
-                      i.putExtra("pass", o.optString("pass",""));
-                      startActivity(i);
-                  } else if ("STB".equals(type)){
-                      Toast.makeText(this,"STB: Live/VOD en V3.2",Toast.LENGTH_SHORT).show();
-                  }
-              }
-
-              void onItemLongClick(int pos){
-                  JSONObject o = data.optJSONObject(pos);
-                  if (o==null) return;
-                  long id = o.optLong("id",-1);
-                  new AlertDialog.Builder(this)
-                          .setTitle("Supprimer ce profil ?")
-                          .setMessage(o.optString("name",""))
-                          .setPositiveButton("Supprimer", (d,w)-> { ProfileManager.removeById(this,id); refresh(); })
-                          .setNegativeButton("Annuler", null)
-                          .show();
-              }
+            ListView list; JSONArray data;
+            protected void onCreate(Bundle b){ super.onCreate(b); setContentView(R.layout.activity_profiles);
+              list=findViewById(R.id.list_profiles);
+              findViewById(R.id.btn_add_m3u).setOnClickListener(v->startActivity(new Intent(this,AddM3UActivity.class)));
+              findViewById(R.id.btn_add_xtream).setOnClickListener(v->startActivity(new Intent(this,AddXtreamActivity.class)));
+              findViewById(R.id.btn_add_stb).setOnClickListener(v->startActivity(new Intent(this,AddStbActivity.class)));
+              list.setOnItemClickListener((a,v,pos,id)->open(pos));
+              list.setOnItemLongClickListener((a,v,pos,id)->{del(pos); return true;});
+            }
+            protected void onResume(){ super.onResume(); refresh(); }
+            void refresh(){ data=ProfileManager.load(this);
+              ArrayList<String> names=new ArrayList<>();
+              for(int i=0;i<data.length();i++){ JSONObject o=data.optJSONObject(i);
+                names.add(o.optString("type","?")+" • "+o.optString("name","Sans nom")); }
+              list.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_list_item_1,names));
+            }
+            void open(int pos){ JSONObject o=data.optJSONObject(pos); if(o==null)return;
+              String type=o.optString("type","");
+              if("M3U".equals(type)){ Intent i=new Intent(this,M3UChannelListActivity.class); i.putExtra("url",o.optString("url","")); startActivity(i); }
+              else if("XTREAM".equals(type)){ Intent i=new Intent(this,com.worldtv.xtream.XtreamLiveCategoriesActivity.class);
+                i.putExtra("host",o.optString("host","")); i.putExtra("user",o.optString("user","")); i.putExtra("pass",o.optString("pass","")); startActivity(i); }
+              else if("STB".equals(type)){ Toast.makeText(this,"STB: à venir",Toast.LENGTH_SHORT).show(); }
+            }
+            void del(int pos){ JSONObject o=data.optJSONObject(pos); if(o==null)return;
+              long id=o.optLong("id",-1);
+              new AlertDialog.Builder(this).setTitle("Supprimer ?").setMessage(o.optString("name",""))
+                .setPositiveButton("Supprimer",(d,w)->{ProfileManager.removeById(this,id);refresh();})
+                .setNegativeButton("Annuler",null).show();
+            }
           }
           EOF
 
           cat > app/src/main/java/com/worldtv/AddM3UActivity.java <<'EOF'
           package com.worldtv;
-
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.widget.Button;
-          import android.widget.EditText;
-          import android.widget.Toast;
-          import org.json.JSONObject;
-
+          import android.app.*; import android.os.*; import android.widget.*; import org.json.*;
           public class AddM3UActivity extends Activity {
-              @Override protected void onCreate(Bundle b){
-                  super.onCreate(b);
-                  setContentView(R.layout.activity_add_m3u);
-                  EditText name = findViewById(R.id.ed_name);
-                  EditText url = findViewById(R.id.ed_url);
-                  Button save = findViewById(R.id.btn_save);
-                  save.setOnClickListener(v -> {
-                      try {
-                          JSONObject o = new JSONObject();
-                          o.put("id", System.currentTimeMillis());
-                          o.put("type","M3U");
-                          o.put("name", name.getText().toString().trim());
-                          o.put("url", url.getText().toString().trim());
-                          ProfileManager.addProfile(this, o);
-                          Toast.makeText(this,"Profil M3U ajouté",Toast.LENGTH_SHORT).show();
-                          finish();
-                      } catch(Exception e){ Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }
-                  });
-              }
+            protected void onCreate(Bundle b){ super.onCreate(b); setContentView(R.layout.activity_add_m3u);
+              EditText name=findViewById(R.id.ed_name), url=findViewById(R.id.ed_url);
+              findViewById(R.id.btn_save).setOnClickListener(v->{ try{
+                JSONObject o=new JSONObject(); o.put("id",System.currentTimeMillis()); o.put("type","M3U");
+                o.put("name",name.getText().toString().trim()); o.put("url",url.getText().toString().trim());
+                ProfileManager.addProfile(this,o); Toast.makeText(this,"Profil M3U ajouté",Toast.LENGTH_SHORT).show(); finish();
+              }catch(Exception e){ Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }});
+            }
           }
           EOF
 
           cat > app/src/main/java/com/worldtv/AddXtreamActivity.java <<'EOF'
           package com.worldtv;
-
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.widget.Button;
-          import android.widget.EditText;
-          import android.widget.Toast;
-          import org.json.JSONObject;
-
+          import android.app.*; import android.os.*; import android.widget.*; import org.json.*;
           public class AddXtreamActivity extends Activity {
-              @Override protected void onCreate(Bundle b){
-                  super.onCreate(b);
-                  setContentView(R.layout.activity_add_xtream);
-                  EditText name = findViewById(R.id.ed_name);
-                  EditText host = findViewById(R.id.ed_host);
-                  EditText user = findViewById(R.id.ed_user);
-                  EditText pass = findViewById(R.id.ed_pass);
-                  Button save = findViewById(R.id.btn_save);
-                  save.setOnClickListener(v -> {
-                      try {
-                          JSONObject o = new JSONObject();
-                          o.put("id", System.currentTimeMillis());
-                          o.put("type","XTREAM");
-                          o.put("name", name.getText().toString().trim());
-                          o.put("host", host.getText().toString().trim());
-                          o.put("user", user.getText().toString().trim());
-                          o.put("pass", pass.getText().toString().trim());
-                          ProfileManager.addProfile(this, o);
-                          Toast.makeText(this,"Profil Xtream ajouté",Toast.LENGTH_SHORT).show();
-                          finish();
-                      } catch(Exception e){ Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }
-                  });
-              }
+            protected void onCreate(Bundle b){ super.onCreate(b); setContentView(R.layout.activity_add_xtream);
+              EditText n=findViewById(R.id.ed_name), h=findViewById(R.id.ed_host), u=findViewById(R.id.ed_user), p=findViewById(R.id.ed_pass);
+              findViewById(R.id.btn_save).setOnClickListener(v->{ try{
+                JSONObject o=new JSONObject(); o.put("id",System.currentTimeMillis()); o.put("type","XTREAM");
+                o.put("name",n.getText().toString().trim()); o.put("host",h.getText().toString().trim());
+                o.put("user",u.getText().toString().trim()); o.put("pass",p.getText().toString().trim());
+                ProfileManager.addProfile(this,o); Toast.makeText(this,"Profil Xtream ajouté",Toast.LENGTH_SHORT).show(); finish();
+              }catch(Exception e){ Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }});
+            }
           }
           EOF
 
           cat > app/src/main/java/com/worldtv/AddStbActivity.java <<'EOF'
           package com.worldtv;
-
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.widget.Button;
-          import android.widget.EditText;
-          import android.widget.Toast;
-          import org.json.JSONObject;
-
+          import android.app.*; import android.os.*; import android.widget.*; import org.json.*;
           public class AddStbActivity extends Activity {
-              @Override protected void onCreate(Bundle b){
-                  super.onCreate(b);
-                  setContentView(R.layout.activity_add_stb);
-                  EditText name = findViewById(R.id.ed_name);
-                  EditText portal = findViewById(R.id.ed_portal);
-                  EditText mac = findViewById(R.id.ed_mac);
-                  Button save = findViewById(R.id.btn_save);
-                  save.setOnClickListener(v -> {
-                      try {
-                          JSONObject o = new JSONObject();
-                          o.put("id", System.currentTimeMillis());
-                          o.put("type","STB");
-                          o.put("name", name.getText().toString().trim());
-                          o.put("portal", portal.getText().toString().trim());
-                          o.put("mac", mac.getText().toString().trim());
-                          ProfileManager.addProfile(this, o);
-                          Toast.makeText(this,"Profil STB ajouté (Live en V3.2)",Toast.LENGTH_SHORT).show();
-                          finish();
-                      } catch(Exception e){ Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }
-                  });
-              }
+            protected void onCreate(Bundle b){ super.onCreate(b); setContentView(R.layout.activity_add_stb);
+              EditText n=findViewById(R.id.ed_name), portal=findViewById(R.id.ed_portal), mac=findViewById(R.id.ed_mac);
+              findViewById(R.id.btn_save).setOnClickListener(v->{ try{
+                JSONObject o=new JSONObject(); o.put("id",System.currentTimeMillis()); o.put("type","STB");
+                o.put("name",n.getText().toString().trim()); o.put("portal",portal.getText().toString().trim()); o.put("mac",mac.getText().toString().trim());
+                ProfileManager.addProfile(this,o); Toast.makeText(this,"Profil STB ajouté",Toast.LENGTH_SHORT).show(); finish();
+              }catch(Exception e){ Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show(); }});
+            }
           }
           EOF
 
           cat > app/src/main/java/com/worldtv/M3UChannelListActivity.java <<'EOF'
           package com.worldtv;
-
-          import android.app.ListActivity;
-          import android.os.Bundle;
-          import android.widget.ArrayAdapter;
-          import android.widget.ListView;
-          import android.content.Intent;
-          import android.widget.Toast;
-          import java.net.*; import java.io.*; import java.nio.charset.StandardCharsets;
-          import java.util.*;
-
+          import android.app.*; import android.os.*; import android.widget.*; import android.content.*; import java.net.*; import java.io.*; import java.nio.charset.StandardCharsets; import java.util.*;
           public class M3UChannelListActivity extends ListActivity {
-              ArrayList<String[]> items = new ArrayList<>();
-
-              @Override protected void onCreate(Bundle b){
-                  super.onCreate(b);
-                  String url = getIntent().getStringExtra("url");
-                  if (url==null || url.isEmpty()){
-                      Toast.makeText(this,"URL M3U manquante",Toast.LENGTH_LONG).show();
-                      finish(); return;
-                  }
-                  new Thread(() -> {
-                      try {
-                          HttpURLConnection c = (HttpURLConnection)new URL(url).openConnection();
-                          c.setConnectTimeout(10000); c.setReadTimeout(20000);
-                          InputStream is = c.getInputStream();
-                          String text = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                          items = M3UParser.parse(text);
-                          runOnUiThread(this::populate);
-                      } catch(Exception e){
-                          runOnUiThread(() -> { Toast.makeText(this,"Erreur M3U: "+e.getMessage(),Toast.LENGTH_LONG).show(); finish(); });
-                      }
-                  }).start();
-              }
-
-              void populate(){
-                  ArrayList<String> names = new ArrayList<>();
-                  for(String[] it: items) names.add(it[0]);
-                  setListAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, names));
-              }
-
-              @Override protected void onListItemClick(ListView l, android.view.View v, int pos, long id){
-                  String url = items.get(pos)[1];
-                  Intent i = new Intent(this, PlayerActivity.class);
-                  i.putExtra("url", url);
-                  startActivity(i);
-              }
+            ArrayList<String[]> items=new ArrayList<>();
+            protected void onCreate(Bundle b){ super.onCreate(b);
+              String url=getIntent().getStringExtra("url");
+              if(url==null||url.isEmpty()){ Toast.makeText(this,"URL M3U manquante",Toast.LENGTH_LONG).show(); finish(); return; }
+              new Thread(()->{ try{
+                HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection(); c.setConnectTimeout(10000); c.setReadTimeout(20000);
+                InputStream is=c.getInputStream(); String text=new String(is.readAllBytes(),StandardCharsets.UTF_8);
+                items=M3UParser.parse(text); runOnUiThread(this::populate);
+              }catch(Exception e){ runOnUiThread(()->{ Toast.makeText(this,"Erreur M3U: "+e.getMessage(),Toast.LENGTH_LONG).show(); finish();}); }}).start();
+            }
+            void populate(){ ArrayList<String> names=new ArrayList<>(); for(String[] it:items) names.add(it[0]);
+              setListAdapter(new ArrayAdapter<>(this,android.R.layout.simple_list_item_1,names)); }
+            protected void onListItemClick(ListView l, android.view.View v, int pos, long id){
+              Intent i=new Intent(this, PlayerActivity.class); i.putExtra("url", items.get(pos)[1]); startActivity(i);
+            }
           }
           EOF
 
-          # ---------- Xtream API + écrans LIVE ----------
+          # Xtream minimal (catégories + chaînes LIVE)
           cat > app/src/main/java/com/worldtv/xtream/XtreamApi.java <<'EOF'
           package com.worldtv.xtream;
-
-          import org.json.*;
-          import java.net.*; import java.io.*; import java.nio.charset.StandardCharsets;
-          import java.util.*;
-
+          import org.json.*; import java.net.*; import java.io.*; import java.nio.charset.StandardCharsets;
           public class XtreamApi {
-              private final String host, user, pass;
-              public XtreamApi(String host, String user, String pass){
-                  this.host = host.endsWith("/") ? host.substring(0, host.length()-1) : host;
-                  this.user = user; this.pass = pass;
-              }
-
-              private String build(String path){
-                  if (path.startsWith("http")) return path;
-                  return this.host + (path.startsWith("/")? "" : "/") + path;
-              }
-
-              private String get(String url) throws Exception {
-                  HttpURLConnection c = (HttpURLConnection)new URL(url).openConnection();
-                  c.setConnectTimeout(15000); c.setReadTimeout(30000);
-                  try(InputStream is = c.getInputStream()){
-                      return new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                  }
-              }
-
-              public JSONArray getLiveCategories() throws Exception {
-                  String u = build("player_api.php?username="+URLEncoder.encode(user,"UTF-8")+"&password="+URLEncoder.encode(pass,"UTF-8")+"&action=get_live_categories");
-                  String resp = get(u);
-                  return new JSONArray(resp);
-              }
-
-              public JSONArray getLiveStreams(String categoryId) throws Exception {
-                  // Certains serveurs utilisent get_live_streams&category_id=, d'autres passent par player_api avec action
-                  String u = build("player_api.php?username="+URLEncoder.encode(user,"UTF-8")+"&password="+URLEncoder.encode(pass,"UTF-8")+"&action=get_live_streams&category_id="+URLEncoder.encode(categoryId,"UTF-8"));
-                  String resp = get(u);
-                  return new JSONArray(resp);
-              }
-
-              public String buildLiveUrl(int streamId){
-                  // .m3u8 marche souvent ; si souci, essayer .ts
-                  return this.host + "/live/" + this.user + "/" + this.pass + "/" + streamId + ".m3u8";
-              }
+            final String host,user,pass;
+            public XtreamApi(String h,String u,String p){ host=h.endsWith("/")?h.substring(0,h.length()-1):h; user=u; pass=p; }
+            String get(String url) throws Exception { HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();
+              c.setConnectTimeout(15000); c.setReadTimeout(30000); try(InputStream is=c.getInputStream()){ return new String(is.readAllBytes(),StandardCharsets.UTF_8);} }
+            public JSONArray getLiveCategories() throws Exception {
+              String u=host+"/player_api.php?username="+URLEncoder.encode(user,"UTF-8")+"&password="+URLEncoder.encode(pass,"UTF-8")+"&action=get_live_categories";
+              return new JSONArray(get(u));
+            }
+            public JSONArray getLiveStreams(String catId) throws Exception {
+              String u=host+"/player_api.php?username="+URLEncoder.encode(user,"UTF-8")+"&password="+URLEncoder.encode(pass,"UTF-8")+"&action=get_live_streams&category_id="+URLEncoder.encode(catId,"UTF-8");
+              return new JSONArray(get(u));
+            }
+            public String buildLiveUrl(int streamId){ return host+"/live/"+user+"/"+pass+"/"+streamId+".m3u8"; }
           }
           EOF
 
           cat > app/src/main/java/com/worldtv/xtream/XtreamLiveCategoriesActivity.java <<'EOF'
           package com.worldtv.xtream;
-
-          import android.app.ListActivity;
-          import android.os.Bundle;
-          import android.widget.ArrayAdapter;
-          import android.widget.ListView;
-          import android.content.Intent;
-          import android.widget.Toast;
-          import org.json.*;
-          import java.util.*;
-
+          import android.app.*; import android.os.*; import android.widget.*; import android.content.*; import org.json.*; import java.util.*;
           public class XtreamLiveCategoriesActivity extends ListActivity {
-              XtreamApi api;
-              ArrayList<String> names = new ArrayList<>();
-              ArrayList<String> ids = new ArrayList<>();
-
-              @Override protected void onCreate(Bundle b){
-                  super.onCreate(b);
-                  String host = getIntent().getStringExtra("host");
-                  String user = getIntent().getStringExtra("user");
-                  String pass = getIntent().getStringExtra("pass");
-                  api = new XtreamApi(host,user,pass);
-                  new Thread(() -> {
-                      try {
-                          JSONArray arr = api.getLiveCategories();
-                          names.clear(); ids.clear();
-                          for(int i=0;i<arr.length();i++){
-                              JSONObject o = arr.optJSONObject(i);
-                              if (o==null) continue;
-                              names.add(o.optString("category_name","Sans nom"));
-                              ids.add(o.optString("category_id","0"));
-                          }
-                          runOnUiThread(() -> setListAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, names)));
-                      } catch(Exception e){
-                          runOnUiThread(()->{ Toast.makeText(this,"Xtream Catégories: "+e.getMessage(),Toast.LENGTH_LONG).show(); finish(); });
-                      }
-                  }).start();
-              }
-
-              @Override protected void onListItemClick(ListView l, android.view.View v, int pos, long id){
-                  Intent i = new Intent(this, XtreamLiveChannelsActivity.class);
-                  i.putExtra("host", getIntent().getStringExtra("host"));
-                  i.putExtra("user", getIntent().getStringExtra("user"));
-                  i.putExtra("pass", getIntent().getStringExtra("pass"));
-                  i.putExtra("catId", ids.get(pos));
-                  startActivity(i);
-              }
+            XtreamApi api; ArrayList<String> names=new ArrayList<>(), ids=new ArrayList<>();
+            protected void onCreate(Bundle b){ super.onCreate(b);
+              api=new XtreamApi(getIntent().getStringExtra("host"), getIntent().getStringExtra("user"), getIntent().getStringExtra("pass"));
+              new Thread(()->{ try{
+                JSONArray arr=api.getLiveCategories(); names.clear(); ids.clear();
+                for(int i=0;i<arr.length();i++){ JSONObject o=arr.optJSONObject(i); if(o==null)continue;
+                  names.add(o.optString("category_name","Sans nom")); ids.add(o.optString("category_id","0")); }
+                runOnUiThread(()-> setListAdapter(new ArrayAdapter<>(this,android.R.layout.simple_list_item_1,names)));
+              }catch(Exception e){ runOnUiThread(()->{ Toast.makeText(this,"Xtream Catégories: "+e.getMessage(),Toast.LENGTH_LONG).show(); finish();}); }}).start();
+            }
+            protected void onListItemClick(ListView l, android.view.View v, int pos, long id){
+              Intent i=new Intent(this, XtreamLiveChannelsActivity.class);
+              i.putExtra("host", getIntent().getStringExtra("host"));
+              i.putExtra("user", getIntent().getStringExtra("user"));
+              i.putExtra("pass", getIntent().getStringExtra("pass"));
+              i.putExtra("catId", ids.get(pos)); startActivity(i);
+            }
           }
           EOF
 
           cat > app/src/main/java/com/worldtv/xtream/XtreamLiveChannelsActivity.java <<'EOF'
           package com.worldtv.xtream;
-
-          import android.app.ListActivity;
-          import android.os.Bundle;
-          import android.widget.ArrayAdapter;
-          import android.widget.ListView;
-          import android.content.Intent;
-          import android.widget.Toast;
-          import org.json.*;
-          import java.util.*;
-
+          import android.app.*; import android.os.*; import android.widget.*; import android.content.*; import org.json.*; import java.util.*;
           public class XtreamLiveChannelsActivity extends ListActivity {
-              XtreamApi api;
-              ArrayList<String> names = new ArrayList<>();
-              ArrayList<Integer> streamIds = new ArrayList<>();
-
-              @Override protected void onCreate(Bundle b){
-                  super.onCreate(b);
-                  String host = getIntent().getStringExtra("host");
-                  String user = getIntent().getStringExtra("user");
-                  String pass = getIntent().getStringExtra("pass");
-                  String catId = getIntent().getStringExtra("catId");
-                  api = new XtreamApi(host,user,pass);
-
-                  new Thread(() -> {
-                      try {
-                          JSONArray arr = api.getLiveStreams(catId);
-                          names.clear(); streamIds.clear();
-                          for(int i=0;i<arr.length();i++){
-                              JSONObject o = arr.optJSONObject(i);
-                              if (o==null) continue;
-                              names.add(o.optString("name","Sans nom"));
-                              streamIds.add(o.optInt("stream_id",0));
-                          }
-                          runOnUiThread(() -> setListAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, names)));
-                      } catch(Exception e){
-                          runOnUiThread(()->{ Toast.makeText(this,"Xtream Streams: "+e.getMessage(),Toast.LENGTH_LONG).show(); finish(); });
-                      }
-                  }).start();
-              }
-
-              @Override protected void onListItemClick(ListView l, android.view.View v, int pos, long id){
-                  int streamId = streamIds.get(pos);
-                  String url = api.buildLiveUrl(streamId);
-                  Intent i = new Intent(this, com.worldtv.PlayerActivity.class);
-                  i.putExtra("url", url);
-                  startActivity(i);
-              }
+            XtreamApi api; ArrayList<String> names=new ArrayList<>(); ArrayList<Integer> ids=new ArrayList<>();
+            protected void onCreate(Bundle b){ super.onCreate(b);
+              api=new XtreamApi(getIntent().getStringExtra("host"), getIntent().getStringExtra("user"), getIntent().getStringExtra("pass"));
+              String catId=getIntent().getStringExtra("catId");
+              new Thread(()->{ try{
+                JSONArray arr=api.getLiveStreams(catId); names.clear(); ids.clear();
+                for(int i=0;i<arr.length();i++){ JSONObject o=arr.optJSONObject(i); if(o==null)continue;
+                  names.add(o.optString("name","Sans nom")); ids.add(o.optInt("stream_id",0)); }
+                runOnUiThread(()-> setListAdapter(new ArrayAdapter<>(this,android.R.layout.simple_list_item_1,names)));
+              }catch(Exception e){ runOnUiThread(()->{ Toast.makeText(this,"Xtream Streams: "+e.getMessage(),Toast.LENGTH_LONG).show(); finish();}); }}).start();
+            }
+            protected void onListItemClick(ListView l, android.view.View v, int pos, long id){
+              String url=api.buildLiveUrl(ids.get(pos));
+              Intent i=new Intent(this, com.worldtv.PlayerActivity.class); i.putExtra("url", url); startActivity(i);
+            }
           }
           EOF
 
-          # ---------- Player ----------
+          # Player
           cat > app/src/main/java/com/worldtv/PlayerActivity.java <<'EOF'
           package com.worldtv;
-
-          import android.net.Uri;
-          import android.os.Bundle;
-          import androidx.appcompat.app.AppCompatActivity;
-          import androidx.media3.common.MediaItem;
-          import androidx.media3.exoplayer.ExoPlayer;
-          import androidx.media3.ui.PlayerView;
-
+          import android.net.*; import android.os.*; import androidx.appcompat.app.AppCompatActivity;
+          import androidx.media3.common.*; import androidx.media3.exoplayer.ExoPlayer; import androidx.media3.ui.PlayerView;
           public class PlayerActivity extends AppCompatActivity {
-              private ExoPlayer player;
-              @Override protected void onCreate(Bundle b) {
-                  super.onCreate(b);
-                  setContentView(R.layout.activity_player);
-                  String url = getIntent().getStringExtra("url");
-                  if (url==null || url.isEmpty()){
-                      url = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
-                  }
-                  player = new ExoPlayer.Builder(this).build();
-                  PlayerView pv = findViewById(R.id.player_view);
-                  pv.setPlayer(player);
-                  player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
-                  player.prepare(); player.play();
-              }
-              @Override protected void onDestroy() {
-                  super.onDestroy();
-                  if (player!=null){ player.release(); player=null; }
-              }
+            private ExoPlayer player;
+            protected void onCreate(Bundle b){ super.onCreate(b); setContentView(R.layout.activity_player);
+              String url=getIntent().getStringExtra("url");
+              if(url==null||url.isEmpty()) url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+              player=new ExoPlayer.Builder(this).build();
+              PlayerView pv=findViewById(R.id.player_view); pv.setPlayer(player);
+              player.setMediaItem(MediaItem.fromUri(Uri.parse(url))); player.prepare(); player.play();
+            }
+            protected void onDestroy(){ super.onDestroy(); if(player!=null){ player.release(); player=null; } }
           }
           EOF
 
